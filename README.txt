@@ -1,17 +1,8 @@
-NIGHT SHIFT — BUILD 1
+NIGHT SHIFT — BUILD 2
 
 Open index.html in a modern browser.
 
-Controls:
 WASD / Arrow keys = move
 E = interact
 
-Build 1:
-- Top-down convenience store
-- SVG graphics
-- Player movement
-- Collision
-- Basic interactables
-- 10 PM to 6 AM shift clock
-
-No external libraries required.
+Build 2 adds real SVG assets, a task system, delivery boxes, coffee machine, trash, register, stockroom, fridge, and a task HUD.
