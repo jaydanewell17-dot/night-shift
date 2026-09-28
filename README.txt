@@ -1,6 +1,7 @@
-NIGHT SHIFT — BUILD 05
+NIGHT SHIFT — BUILD 06
+
 Open index.html in a browser.
-WASD / arrow keys = move
-E = interact
-Build 05 adds an actual checkout flow: approach a ready customer, scan every item, then take cash or card payment.
-SVG assets are local and intentionally becoming more detailed/object-specific each build.
+Controls: WASD / arrow keys to move. E to interact.
+
+Build 06 adds a more believable store counter, coffee cup, shopping basket, multi-step coffee cleaning, trash carry-out interaction, sequential customer arrivals, and additional detailed SVG props.
+All artwork is local SVG.
