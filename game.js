@@ -1,15 +1,49 @@
-const p=document.getElementById('player'), marker=document.getElementById('marker'), clock=document.getElementById('clock'), list=document.getElementById('taskList'), count=document.getElementById('taskCount'), msg=document.getElementById('message'), layer=document.getElementById('customerLayer'), custCount=document.getElementById('customers');
-const player={x:610,y:610,r:15,speed:190},keys=new Set();let last=performance.now(),minutes=1320,msgT=0,served=0;
-const obstacles=[{x:105,y:86,w:270,h:95},{x:105,y:238,w:270,h:95},{x:430,y:86,w:270,h:95},{x:430,y:238,w:270,h:95},{x:780,y:82,w:330,h:105},{x:785,y:345,w:310,h:135},{x:855,y:500,w:110,h:125},{x:80,y:565,w:68,h:82},{x:1020,y:575,w:100,h:143}];
-const tasks=[['stock','Stock the snack shelves',360,210,80,'The shelves are faced and stocked.'],['boxes','Move the delivery boxes',250,440,75,'Delivery boxes moved out of the aisle.'],['coffee','Check the coffee machine',910,560,75,'Coffee machine checked and wiped down.'],['trash','Take out the trash',115,610,70,'Trash taken care of.'],['register','Count the register',940,470,80,'The register balances.'],['fridge','Face the drink cooler',900,205,80,'Cooler doors checked and drinks faced.']].map(a=>({id:a[0],label:a[1],x:a[2],y:a[3],r:a[4],msg:a[5],done:false}));
-const customers=[{x:610,y:395,tx:935,ty:325,done:false},{x:735,y:575,tx:935,ty:325,done:false},{x:1090,y:290,tx:935,ty:325,done:false}],els=[];
-function renderTasks(){list.innerHTML=tasks.map(t=>`<div class="task ${t.done?'done':''}"><i class="dot"></i><span>${t.label}</span></div>`).join('');count.textContent=tasks.filter(t=>t.done).length+' / '+tasks.length}
+const p=document.getElementById('player'), marker=document.getElementById('marker'), clock=document.getElementById('clock'), list=document.getElementById('taskList'), count=document.getElementById('taskCount'), msg=document.getElementById('message'), layer=document.getElementById('customerLayer'), custCount=document.getElementById('customers'), prompt=document.getElementById('prompt');
+const player={x:610,y:610,r:15,speed:190},keys=new Set();let last=performance.now(),minutes=1320,msgT=0,served=0,inventory=0,trashBags=0,coffeeChecked=false,registerCounted=false;
+const obstacles=[{x:105,y:86,w:270,h:95},{x:105,y:238,w:270,h:95},{x:430,y:86,w:270,h:95},{x:430,y:238,w:270,h:95},{x:780,y:82,w:330,h:105},{x:785,y:345,w:310,h:135},{x:855,y:500,w:110,h:125},{x:80,y:565,w:68,h:82},{x:1020,y:575,w:100,h:143},{x:530,y:645,w:140,h:73}];
+const tasks=[
+{id:'stock',label:'Restock 6 shelf items',x:365,y:205,r:75,msg:'Six items restocked.',done:false},
+{id:'boxes',label:'Move 3 delivery boxes',x:270,y:440,r:78,msg:'Delivery boxes moved to the stock area.',done:false},
+{id:'coffee',label:'Clean the coffee station',x:910,y:560,r:78,msg:'Coffee station cleaned and reset.',done:false},
+{id:'trash',label:'Take out the trash',x:115,y:610,r:72,msg:'Trash taken outside.',done:false},
+{id:'register',label:'Count the register',x:940,y:470,r:82,msg:'Register counted. Everything balances.',done:false},
+{id:'fridge',label:'Face the drink cooler',x:900,y:205,r:82,msg:'Cooler faced and doors checked.',done:false}
+];
+const customers=[
+{x:610,y:395,tx:940,ty:325,state:'walking',served:false,name:'CUSTOMER 01',items:3},
+{x:735,y:575,tx:940,ty:325,state:'walking',served:false,name:'CUSTOMER 02',items:2},
+{x:1090,y:290,tx:940,ty:325,state:'walking',served:false,name:'CUSTOMER 03',items:1},
+{x:500,y:570,tx:940,ty:325,state:'waiting',served:false,name:'CUSTOMER 04',items:4}
+];
+const els=[];
+function renderTasks(){list.innerHTML=tasks.map(t=>`<div class="task ${t.done?'done':''}"><i class="dot"></i><span>${t.label}</span></div>`).join('');count.textContent=tasks.filter(t=>t.done).length+' / '+tasks.length;document.getElementById('inventory').textContent=inventory}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}function hit(x,y,r,o){let qx=clamp(x,o.x,o.x+o.w),qy=clamp(y,o.y,o.y+o.h);return (x-qx)**2+(y-qy)**2<r*r}function collide(x,y){return obstacles.some(o=>hit(x,y,player.r,o))||x<60||x>1140||y<60||y>700}function move(dx,dy){if(!collide(player.x+dx,player.y))player.x+=dx;if(!collide(player.x,player.y+dy))player.y+=dy}
-function nearest(){let b=null,d=1e9;for(const t of tasks)if(!t.done){let n=Math.hypot(player.x-t.x,player.y-t.y);if(n<t.r&&n<d){b=t;d=n}}return b}
+function nearestTask(){let b=null,d=1e9;for(const t of tasks)if(!t.done){let n=Math.hypot(player.x-t.x,player.y-t.y);if(n<t.r&&n<d){b=t;d=n}}return b}
+function nearestCustomer(){return customers.find(c=>!c.served&&c.state==='ready'&&Math.hypot(player.x-c.tx,player.y-c.ty)<95)}
 function show(s){msg.textContent=s;msg.style.opacity=1;msgT=2.5}
-function interact(){let t=nearest();if(t){t.done=true;show(t.msg);renderTasks();return}let c=customers.find(c=>!c.done&&Math.hypot(player.x-c.x,player.y-c.y)<48);if(c){c.done=true;served++;custCount.textContent=served;show('Customer checked out.');return}show('Nothing needs your attention here.')}
-function customerGraphic(c,i){let g=document.createElementNS('http://www.w3.org/2000/svg','g');g.innerHTML=`<ellipse cx="0" cy="14" rx="13" ry="5" fill="#222" opacity=".4"/><circle cy="-4" r="7" fill="${i%2?'#b99f8e':'#9d8778'}"/><path d="M-7-4q1-11 7-11t7 11q-4-4-7-3t-7 3" fill="${i%2?'#292929':'#171717'}"/><path d="M-10 7q10-7 20 0v12h-20z" fill="${i%2?'#555':'#363636'}"/>`;layer.appendChild(g);els.push(g)}customers.forEach(customerGraphic);
-function updateCustomers(dt){customers.forEach((c,i)=>{if(c.done)return;let dx=c.tx-c.x,dy=c.ty-c.y,d=Math.hypot(dx,dy);if(d>10){c.x+=dx/d*42*dt;c.y+=dy/d*42*dt}els[i].setAttribute('transform',`translate(${c.x},${c.y})`)})}
+function doTask(t){
+ if(t.id==='stock'){
+  if(inventory<6){show('You need 6 items from the delivery boxes. Press E near the boxes to pick them up.');return}
+  inventory-=6;
+ }
+ if(t.id==='boxes') inventory=3;
+ if(t.id==='coffee') coffeeChecked=true;
+ if(t.id==='trash') trashBags++;
+ if(t.id==='register') registerCounted=true;
+ t.done=true;show(t.msg);renderTasks();
+}
+function interact(){
+ const t=nearestTask();
+ if(t){doTask(t);return}
+ const boxDist=Math.min(Math.hypot(player.x-239,player.y-439),Math.hypot(player.x-324,player.y-439));
+ if(boxDist<80 && inventory<6){inventory=6;show('You picked up 6 shelf items. Take them to the snack shelves.');renderTasks();return}
+ const c=nearestCustomer();
+ if(c){c.served=true;c.state='served';served++;custCount.textContent=served;show(`Checkout complete — ${c.items} items scanned.`);return}
+ if(Math.hypot(player.x-940,player.y-325)<105){show('A customer is waiting at the register.');return}
+ show('Nothing needs your attention here.');
+}
+function customerGraphic(c,i){let g=document.createElementNS('http://www.w3.org/2000/svg','g');g.innerHTML=`<ellipse cx="0" cy="16" rx="14" ry="5" fill="#171717" opacity=".42"/><circle cy="-5" r="7" fill="${i%2?'#a98e7e':'#8d7769'}"/><path d="M-7-5q1-11 7-11t7 11q-4-4-7-3t-7 3" fill="${i%2?'#292929':'#151515'}"/><path d="M-10 7q10-7 20 0v13h-20z" fill="${['#4a4a4a','#5b554d','#383838','#68615a'][i%4]}"/>`;layer.appendChild(g);els.push(g)}customers.forEach(customerGraphic);
+function updateCustomers(dt){customers.forEach((c,i)=>{if(c.served)return;if(c.state==='waiting')return;let dx=c.tx-c.x,dy=c.ty-c.y,d=Math.hypot(dx,dy);if(d>10){c.x+=dx/d*42*dt;c.y+=dy/d*42*dt}else{c.state='ready'}els[i].setAttribute('transform',`translate(${c.x},${c.y})`);els[i].setAttribute('opacity',c.served?'0':1)})}
 function updateClock(dt){minutes+=dt*.8;if(minutes>=1800){minutes=1800;clock.textContent='6:00 AM';return}let h=Math.floor((minutes%1440)/60),m=Math.floor(minutes%60),ap=h>=12?'PM':'AM';h=h%12||12;clock.textContent=`${h}:${String(m).padStart(2,'0')} ${ap}`}
-function loop(now){let dt=Math.min((now-last)/1000,.05);last=now;let dx=0,dy=0;if(keys.has('w')||keys.has('arrowup'))dy--;if(keys.has('s')||keys.has('arrowdown'))dy++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++;if(dx||dy){let l=Math.hypot(dx,dy);move(dx/l*player.speed*dt,dy/l*player.speed*dt)}updateCustomers(dt);updateClock(dt);let t=nearest();marker.setAttribute('opacity',t?'1':'0');if(t)marker.setAttribute('transform',`translate(${t.x},${t.y-35})`);p.setAttribute('transform',`translate(${player.x},${player.y})`);if(msgT>0){msgT-=dt;if(msgT<=0)msg.style.opacity=0}requestAnimationFrame(loop)}
+function loop(now){let dt=Math.min((now-last)/1000,.05);last=now;let dx=0,dy=0;if(keys.has('w')||keys.has('arrowup'))dy--;if(keys.has('s')||keys.has('arrowdown'))dy++;if(keys.has('a')||keys.has('arrowleft'))dx--;if(keys.has('d')||keys.has('arrowright'))dx++;if(dx||dy){let l=Math.hypot(dx,dy);move(dx/l*player.speed*dt,dy/l*player.speed*dt)}updateCustomers(dt);updateClock(dt);let t=nearestTask();let c=nearestCustomer();marker.setAttribute('opacity',(t||c)?'1':'0');if(c){marker.setAttribute('transform',`translate(${c.tx},${c.ty-35})`);prompt.textContent='E  CHECK OUT CUSTOMER'}else if(t){marker.setAttribute('transform',`translate(${t.x},${t.y-35})`);prompt.textContent='E  INTERACT'}else prompt.textContent='WASD  MOVE   E  INTERACT';p.setAttribute('transform',`translate(${player.x},${player.y})`);if(msgT>0){msgT-=dt;if(msgT<=0)msg.style.opacity=0}requestAnimationFrame(loop)}
 addEventListener('keydown',e=>{let k=e.key.toLowerCase();if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright','e'].includes(k))e.preventDefault();keys.add(k);if(k==='e'&&!e.repeat)interact()});addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));renderTasks();requestAnimationFrame(loop);
