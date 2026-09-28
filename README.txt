@@ -1,20 +1,6 @@
-NIGHT SHIFT — BUILD 4
-
+NIGHT SHIFT — BUILD 05
 Open index.html in a browser.
-
-CONTROLS
-WASD / Arrow Keys — move
-E — interact
-
-BUILD 4 FOCUS
-- SVG assets use the detailed/realistic variants.
-- Delivery boxes now provide a stock inventory.
-- Restocking requires carrying six items from delivery to the shelves.
-- Customer checkout interaction is active.
-- Four customers can appear in the queue area.
-- Stock count is shown in the HUD.
-- Coffee, trash, register, cooler, delivery and stocking tasks remain.
-- Store collision includes the entrance and stockroom area.
-
-NEXT BUILD
-Possible Build 5 focus: proper item-by-item stocking, real register UI, customer purchases, prices/change, cleaning mini-actions, and more store detail.
+WASD / arrow keys = move
+E = interact
+Build 05 adds an actual checkout flow: approach a ready customer, scan every item, then take cash or card payment.
+SVG assets are local and intentionally becoming more detailed/object-specific each build.
